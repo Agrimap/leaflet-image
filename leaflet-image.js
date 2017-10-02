@@ -104,7 +104,9 @@ module.exports = function leafletImage(map, callback) {
 
         for (j = tileBounds.min.y; j <= tileBounds.max.y; j++) {
             for (i = tileBounds.min.x; i <= tileBounds.max.x; i++) {
-                tiles.push(new L.Point(i, j));
+                var p = new L.Point(i, j);
+                p.z = layer._tileZoom;
+                tiles.push(p);
             }
         }
 
@@ -123,7 +125,7 @@ module.exports = function leafletImage(map, callback) {
                 if (isCanvasLayer) {
                     var tile = layer._tiles[tilePoint.x + ':' + tilePoint.y];
                     tileQueue.defer(canvasTile, tile, tilePos, tileSize);
-                } else {
+                } else if (layer.options.tiles && layer.options.format && layer.scalePrefix) {
                     var url = addCacheString(layer.getTileUrl(tilePoint));
                     tileQueue.defer(loadTile, url, tilePos, tileSize);
                 }
@@ -251,15 +253,19 @@ module.exports = function leafletImage(map, callback) {
 
     function addCacheString(url) {
         // If it's a data URL we don't want to touch this.
-        if (isDataURL(url) || url.indexOf('mapbox.com/styles/v1') !== -1) {
+        if (!url || isDataURL(url) || url.indexOf('mapbox.com/styles/v1') !== -1) {
             return url;
         }
         return url + ((url.match(/\?/)) ? '&' : '?') + 'cache=' + cacheBusterDate;
     }
 
     function isDataURL(url) {
-        var dataURLRegex = /^\s*data:([a-z]+\/[a-z]+(;[a-z\-]+\=[a-z\-]+)?)?(;base64)?,[a-z0-9\!\$\&\'\,\(\)\*\+\,\;\=\-\.\_\~\:\@\/\?\%\s]*\s*$/i;
-        return !!url.match(dataURLRegex);
+        if (url) {
+            var dataURLRegex = /^\s*data:([a-z]+\/[a-z]+(;[a-z\-]+\=[a-z\-]+)?)?(;base64)?,[a-z0-9\!\$\&\'\,\(\)\*\+\,\;\=\-\.\_\~\:\@\/\?\%\s]*\s*$/i;
+            return !!url.match(dataURLRegex);
+        }
+
+        return false;
     }
 
 };
