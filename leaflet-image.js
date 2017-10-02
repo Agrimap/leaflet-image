@@ -198,6 +198,50 @@ module.exports = function leafletImage(map, callback) {
     }
 
     function handleMarkerLayer(marker, callback) {
+        if (marker._icon.src) {
+            handleMarkerSrcLayer(marker, callback);
+        } else {
+            handleTextLayer(marker, callback);
+        }
+    }
+
+    function handleTextLayer(marker, callback) {
+        var fontSize = marker._icon.style.fontSize;
+        var floatSize = parseFloat(fontSize.substring(0, fontSize.length - 2));
+
+        var canvas = document.createElement('canvas'),
+            ctx = canvas.getContext('2d'),
+            pixelBounds = map.getPixelBounds(),
+            minPoint = new L.Point(pixelBounds.min.x, pixelBounds.min.y),
+            pixelPoint = map.project(marker.getLatLng()),
+            pos = pixelPoint.subtract(minPoint);
+
+        canvas.width = dimensions.x;
+        canvas.height = dimensions.y;
+
+        ctx.font = fontSize + '/' + floatSize + 5 + 'px Arial, Helvetica, sans-serif';
+        ctx.textBaseline = 'top';
+        ctx.textAlign = 'left';
+
+        var text = marker.options.icon.options.html;
+        var rgbaColour = marker.options.icon.options.rgbaColour;
+        var rgbaText = marker.options.icon.options.rgbaText;
+        var width = ctx.measureText(text).width;
+
+        // Pos is the center of the marker, find top left point
+        var tl = {x: pos.x - (width / 2), y: pos.y - (floatSize / 2) };
+
+        // Draw Background
+        ctx.fillStyle = rgbaColour;
+        ctx.fillRect(tl.x - 10, tl.y - 1, width + 20, floatSize + 6);
+
+        // Draw Text
+        ctx.fillStyle = rgbaText;
+        ctx.fillText(text, tl.x, tl.y);
+        callback(null, { canvas: canvas });
+    }
+
+    function handleMarkerSrcLayer(marker, callback) {
         var canvas = document.createElement('canvas'),
             ctx = canvas.getContext('2d'),
             pixelBounds = map.getPixelBounds(),
