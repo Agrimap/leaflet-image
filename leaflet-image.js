@@ -11,7 +11,8 @@ module.exports = function leafletImage(map, callback) {
     var hasMapbox = !!L.mapbox;
 
     var dimensions = map.getSize(),
-        layerQueue = new queue(1);
+        layerQueue = new queue(1),
+        dataUrls = [];
 
     var canvas = document.createElement('canvas');
     canvas.width = dimensions.x;
@@ -61,7 +62,14 @@ module.exports = function leafletImage(map, callback) {
     }
 
     function done() {
+        cleanupDataUrls();
         callback(null, canvas);
+    }
+
+    function cleanupDataUrls() {
+        for (var i = 0; i < dataUrls.length; i++) {
+            URL.revokeObjectURL(dataUrls[i]);
+        }
     }
 
     function layersDone(err, layers) {
@@ -165,7 +173,35 @@ module.exports = function leafletImage(map, callback) {
                     });
                 }
             };
-            im.src = url;
+
+            // im.src = url;
+            loadImageUsingXMLHttpRequest(im, url);
+        }
+
+        function loadImageUsingXMLHttpRequest(im, url) {
+            var xhr = new XMLHttpRequest();
+            xhr.onload = function () {
+                var dataUrl = URL.createObjectURL(this.response);
+                im.src = dataUrl;
+
+                dataUrls.push(dataUrl);
+            };
+            xhr.onerror = function(e) {
+                // use canvas instead of errorTileUrl if errorTileUrl get 404
+                if (layer.options.errorTileUrl != '' && e.target.errorCheck === undefined) {
+                    e.target.errorCheck = true;
+                    e.target.src = layer.options.errorTileUrl;
+                } else {
+                    callback(null, {
+                        img: dummycanvas,
+                        pos: tilePos,
+                        size: tileSize
+                    });
+                }
+            };
+            xhr.open('GET', url, true);
+            xhr.responseType = 'blob';
+            xhr.send();
         }
 
         function tileQueueFinish(err, data) {
